@@ -5,11 +5,20 @@ import { Artwork } from "@/models/Artwork"
 import { User } from "@/models/User"
 import { Session } from "next-auth"
 
+type SessionUser = {
+  name?: string | null;
+  email?: string | null;
+  image?: string | null;
+  role?: string | null;
+  id?: string | null;
+};
+
 export async function GET() {
   try {
     const session = await getTypedSession()
+    const user = session?.user as SessionUser
 
-    if (!session?.user || session.user.role !== "admin") {
+    if (!user || user.role !== "admin") {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -36,8 +45,9 @@ export async function GET() {
 export async function PATCH(req: Request) {
   try {
     const session = await getTypedSession()
+    const user = session?.user as SessionUser
 
-    if (!session?.user || session.user.role !== "admin") {
+    if (!user || user.role !== "admin") {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -92,8 +102,9 @@ export async function PATCH(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const session = await getTypedSession()
+    const user = session?.user as SessionUser
 
-    if (!session?.user || session.user.role !== "admin") {
+    if (!user || user.role !== "admin") {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
