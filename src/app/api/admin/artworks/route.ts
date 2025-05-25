@@ -5,10 +5,11 @@ import { authOptions } from "@/lib/auth"
 import dbConnect from "@/lib/mongodb"
 import { Artwork } from "@/models/Artwork"
 import { User } from "@/models/User"
+import { Session } from "next-auth"
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
+    const session = (await getServerSession(authOptions)) as Session
 
     if (!session?.user || session.user.role !== "admin") {
       return NextResponse.json(
