@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { getTypedSession } from "@/lib/getTypedSession"
 import dbConnect from "@/lib/mongodb"
 import { Artwork } from "@/models/Artwork"
 import { User } from "@/models/User"
@@ -8,7 +7,7 @@ import { Session } from "next-auth"
 
 export async function GET() {
   try {
-    const session = (await getServerSession(authOptions)) as Session
+    const session = await getTypedSession()
 
     if (!session?.user || session.user.role !== "admin") {
       return NextResponse.json(
@@ -36,7 +35,7 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getTypedSession()
 
     if (!session?.user || session.user.role !== "admin") {
       return NextResponse.json(
@@ -92,7 +91,7 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getTypedSession()
 
     if (!session?.user || session.user.role !== "admin") {
       return NextResponse.json(

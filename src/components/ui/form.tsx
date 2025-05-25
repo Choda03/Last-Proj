@@ -7,7 +7,7 @@ import { z } from "zod"
 import { cn } from "@/lib/utils"
 
 interface FormProps<T extends FieldValues>
-  extends Omit<React.FormHTMLAttributes<HTMLFormElement>, "onSubmit"> {
+  extends Omit<React.FormHTMLAttributes<HTMLFormElement>, "onSubmit" | "children"> {
   schema: z.ZodType<T>
   onSubmit: SubmitHandler<T>
   defaultValues?: UseFormProps<T>["defaultValues"]
