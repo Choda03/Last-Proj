@@ -11,6 +11,8 @@ import {
   LogOut,
 } from "lucide-react"
 import { signOut } from "next-auth/react"
+import { useState } from "react"
+import { ConfirmModal } from "@/components/ui/ConfirmModal"
 
 const navigation = [
   {
@@ -37,6 +39,12 @@ const navigation = [
 
 export function AdminSidebar() {
   const pathname = usePathname()
+  const [showSignOutModal, setShowSignOutModal] = useState(false)
+
+  const confirmSignOut = async () => {
+    setShowSignOutModal(false)
+    await signOut({ callbackUrl: "/" })
+  }
 
   return (
     <div className="flex h-screen w-64 flex-col border-r bg-background">
@@ -67,13 +75,22 @@ export function AdminSidebar() {
       </nav>
       <div className="border-t p-4">
         <button
-          onClick={() => signOut({ callbackUrl: "/" })}
+          onClick={() => setShowSignOutModal(true)}
           className="flex w-full items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium text-red-500 hover:bg-red-50"
         >
           <LogOut className="h-5 w-5" />
           <span>Sign Out</span>
         </button>
       </div>
+      <ConfirmModal
+        open={showSignOutModal}
+        title="Sign out?"
+        description="Are you sure you want to sign out?"
+        confirmText="Sign Out"
+        cancelText="Cancel"
+        onConfirm={confirmSignOut}
+        onCancel={() => setShowSignOutModal(false)}
+      />
     </div>
   )
 } 

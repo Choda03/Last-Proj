@@ -10,10 +10,23 @@ declare module "next-auth" {
       image?: string | null;
       role?: string | null;
       id?: string | null;
+      emailVerified?: boolean;
+      createdAt?: Date;
     };
   }
   interface User {
     role?: string | null;
     id?: string | null;
+    emailVerified?: boolean;
+    createdAt?: Date;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    role?: string | null;
+    id?: string | null;
+    emailVerified?: boolean;
+    createdAt?: Date;
   }
 } 

@@ -262,7 +262,6 @@ export default function LoginPage() {
                           label="Password"
                           type="password"
                           error={errors.password?.message}
-                          description="Must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
                           {...register("password")}
                         />
                         <FormField

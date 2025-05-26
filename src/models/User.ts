@@ -1,5 +1,5 @@
 import mongoose, { Document } from "mongoose"
-import { hash } from "bcryptjs"
+import bcrypt from "bcryptjs"
 
 export interface IUser extends Document {
   name: string
@@ -8,9 +8,18 @@ export interface IUser extends Document {
   role: "user" | "admin"
   isActive: boolean
   emailVerified: boolean
+  failedLoginAttempts: number
+  lastFailedLogin: Date | null
+  isLocked: boolean
+  lockExpires: Date | null
+  resetPasswordToken: string | null
+  resetPasswordExpires: Date | null
+  emailVerificationToken: string | null
+  emailVerificationExpires: Date | null
   createdAt: Date
   updatedAt: Date
   comparePassword(candidatePassword: string): Promise<boolean>
+  likedArtworks: mongoose.Types.ObjectId[]
 }
 
 const userSchema = new mongoose.Schema<IUser>(
@@ -51,6 +60,43 @@ const userSchema = new mongoose.Schema<IUser>(
       type: Boolean,
       default: false,
     },
+    failedLoginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lastFailedLogin: {
+      type: Date,
+      default: null,
+    },
+    isLocked: {
+      type: Boolean,
+      default: false,
+    },
+    lockExpires: {
+      type: Date,
+      default: null,
+    },
+    resetPasswordToken: {
+      type: String,
+      default: null,
+    },
+    resetPasswordExpires: {
+      type: Date,
+      default: null,
+    },
+    emailVerificationToken: {
+      type: String,
+      default: null,
+    },
+    emailVerificationExpires: {
+      type: Date,
+      default: null,
+    },
+    likedArtworks: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Artwork",
+      default: [],
+    }],
   },
   {
     timestamps: true,
@@ -64,8 +110,8 @@ userSchema.pre("save", async function (next) {
   }
 
   try {
-    const salt = await hash(this.password, 12)
-    this.password = salt
+    const salt = await bcrypt.genSalt(12)
+    this.password = await bcrypt.hash(this.password, salt)
     next()
   } catch (error: any) {
     next(error)
@@ -77,15 +123,17 @@ userSchema.methods.comparePassword = async function (
   candidatePassword: string
 ): Promise<boolean> {
   try {
-    const { compare } = await import("bcryptjs")
-    return await compare(candidatePassword, this.password)
+    return await bcrypt.compare(candidatePassword, this.password)
   } catch (error) {
     throw error
   }
 }
 
 // Create indexes
+userSchema.index({ email: 1 }, { unique: true })
 userSchema.index({ role: 1 })
+userSchema.index({ resetPasswordToken: 1 })
+userSchema.index({ emailVerificationToken: 1 })
 
 export const User =
   mongoose.models.User || mongoose.model<IUser>("User", userSchema) 

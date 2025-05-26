@@ -1,5 +1,6 @@
 import { Metadata } from "next"
 import { Playfair_Display } from "next/font/google"
+import Link from "next/link"
 
 const playfair = Playfair_Display({ subsets: ["latin"] })
 
@@ -94,19 +95,16 @@ export default function AboutPage() {
           Whether you're an artist looking to showcase your work or an art enthusiast seeking to discover 
           new talent, GalleryHub is the perfect platform for you.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <a
-            href="/signup"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+        <div className="mt-10 flex items-center justify-center gap-x-6">
+          <Link
+            href="/login"
+            className="rounded-md bg-primary px-3.5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
-            Get Started
-          </a>
-          <a
-            href="/contact"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-6 py-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-          >
-            Contact Us
-          </a>
+            Get started
+          </Link>
+          <Link href="#features" className="text-sm font-semibold leading-6 text-muted-foreground">
+            Learn more <span aria-hidden="true">→</span>
+          </Link>
         </div>
       </div>
     </div>

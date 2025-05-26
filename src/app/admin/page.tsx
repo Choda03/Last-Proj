@@ -187,6 +187,11 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
+      {/* Debug Panel */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded p-4 text-xs text-yellow-900 mb-4">
+        <strong>Debug: Raw images data</strong>
+        <pre className="overflow-x-auto whitespace-pre-wrap">{JSON.stringify(images, null, 2)}</pre>
+      </div>
       <div>
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground">
@@ -296,28 +301,41 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {images.map((image) => (
+                {images.map((image: any) => (
                   <div
-                    key={image.id}
-                    className="border rounded-lg overflow-hidden"
+                    key={image._id}
+                    className="border rounded-lg overflow-hidden bg-white shadow hover:shadow-lg transition-shadow flex flex-col"
                   >
                     <div className="relative aspect-square">
-                      <Image
-                        src={image.url}
+                      <img
+                        src={image.imageUrl}
                         alt={image.title}
-                        fill
-                        className="object-cover"
+                        className="object-cover w-full h-48"
                       />
                     </div>
-                    <div className="p-4">
-                      <h3 className="font-medium">{image.title}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {image.description}
-                      </p>
+                    <div className="p-4 flex-1 flex flex-col">
+                      <h3 className="font-medium text-lg">{image.title}</h3>
+                      <div className="text-xs text-muted-foreground mb-1">{image.category}</div>
+                      <div className="text-sm mb-1">{image.description}</div>
+                      {image.tags && image.tags.length > 0 && (
+                        <div className="text-xs text-muted-foreground mb-1">
+                          <span className="font-semibold">Tags:</span> {image.tags.join(", ")}
+                        </div>
+                      )}
+                      {image.artist && (
+                        <div className="mt-2 text-xs bg-muted/50 rounded p-2">
+                          <div>
+                            <span className="font-semibold">Uploader:</span> {image.artist.name} ({image.artist.email})
+                          </div>
+                          <div>
+                            <span className="font-semibold">Role:</span> {image.artist.role}
+                          </div>
+                        </div>
+                      )}
                       <Button
                         variant="destructive"
                         className="mt-2"
-                        onClick={() => handleDeleteImage(image.id)}
+                        onClick={() => handleDeleteImage(image._id)}
                       >
                         Delete
                       </Button>

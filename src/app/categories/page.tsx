@@ -5,10 +5,40 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { ArrowRight, Palette, Camera, Brush, Pencil, Scissors, Image as ImageIcon, Users } from "lucide-react"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { ConfirmModal } from "@/components/ui/ConfirmModal"
 
 const playfair = Playfair_Display({ subsets: ["latin"] })
 
 export default function CategoriesPage() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+  const [showAuthModal, setShowAuthModal] = useState(false)
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      setShowAuthModal(true)
+    }
+  }, [status])
+
+  if (status === "loading") return null
+
+  if (status === "unauthenticated") {
+    return (
+      <ConfirmModal
+        open={showAuthModal}
+        title="Authentication Required"
+        description="You must be logged in to view categories."
+        confirmText="Log in"
+        cancelText="Cancel"
+        onConfirm={() => router.push("/login")}
+        onCancel={() => setShowAuthModal(false)}
+      />
+    )
+  }
+
   const categories = [
     {
       id: "abstract",
