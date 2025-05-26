@@ -19,7 +19,6 @@ export interface IUser extends Document {
   createdAt: Date
   updatedAt: Date
   comparePassword(candidatePassword: string): Promise<boolean>
-  likedArtworks: mongoose.Types.ObjectId[]
 }
 
 const userSchema = new mongoose.Schema<IUser>(
@@ -92,11 +91,6 @@ const userSchema = new mongoose.Schema<IUser>(
       type: Date,
       default: null,
     },
-    likedArtworks: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Artwork",
-      default: [],
-    }],
   },
   {
     timestamps: true,

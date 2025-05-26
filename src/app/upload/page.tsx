@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form";
 import { toast } from "sonner";
+import { categories } from "@/constants/categories";
 
 export default function UploadPage() {
   const { data: session, status } = useSession();
@@ -100,19 +101,19 @@ export default function UploadPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Category</label>
+              <label className="block text-sm font-medium mb-1" htmlFor="category">Category</label>
               <select
+                id="category"
                 name="category"
                 value={form.category}
                 onChange={handleChange}
-                className="w-full border rounded-md px-3 py-2"
+                className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition"
                 required
               >
-                <option value="painting">Painting</option>
-                <option value="photography">Photography</option>
-                <option value="digital">Digital</option>
-                <option value="sculpture">Sculpture</option>
-                <option value="other">Other</option>
+                <option value="" disabled>Select a category</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.title}</option>
+                ))}
               </select>
             </div>
             <FormField
