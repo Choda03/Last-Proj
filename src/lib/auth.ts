@@ -101,57 +101,90 @@ export const authOptions: AuthOptions = {
   },
   callbacks: {
     async jwt({ token, user, account }) {
-      if (account && user) {
-        // Initial sign in
-        if (account.provider === "credentials") {
-          token.role = user.role
-          token.id = user.id
-          token.emailVerified = user.emailVerified
-          token.createdAt = user.createdAt
-        } else {
-          // Social sign in
-          await dbConnect()
-          const existingUser = await User.findOne({ email: user.email })
+      // Log incoming token, user, and account for debugging
+      console.log('JWT callback - initial state:', { 
+        token: { id: token.id, email: token.email, role: token.role },
+        user: user ? { id: user.id, email: user.email, role: (user as any).role } : 'No user',
+        account: account ? { provider: account.provider, type: account.type } : 'No account'
+      });
 
-          if (existingUser) {
-            token.role = existingUser.role
-            token.id = existingUser._id.toString()
-            token.emailVerified = existingUser.emailVerified
-            token.createdAt = existingUser.createdAt
+      try {
+        if (account && user) {
+          // Initial sign in
+          if (account.provider === "credentials") {
+            token.role = (user as any).role || 'user';
+            token.id = user.id;
+            token.emailVerified = (user as any).emailVerified || false;
+            token.createdAt = (user as any).createdAt || new Date();
+            console.log('JWT - Credentials sign in:', { role: token.role, id: token.id });
           } else {
-            // Create new user for social sign in
-            const newUser = await User.create({
-              name: user.name,
-              email: user.email,
-              role: "user",
-              emailVerified: true, // Social auth emails are pre-verified
-              provider: account.provider,
-            })
-            token.role = newUser.role
-            token.id = newUser._id.toString()
-            token.emailVerified = true
-            token.createdAt = newUser.createdAt
+            // Social sign in
+            await dbConnect();
+            const existingUser = await User.findOne({ email: user.email });
+
+            if (existingUser) {
+              token.role = existingUser.role || 'user';
+              token.id = existingUser._id.toString();
+              token.emailVerified = existingUser.emailVerified || false;
+              token.createdAt = existingUser.createdAt;
+              console.log('JWT - Existing social user:', { role: token.role, id: token.id });
+            } else {
+              // Create new user for social sign in
+              const newUser = await User.create({
+                name: user.name,
+                email: user.email,
+                role: "user",
+                emailVerified: true, // Social auth emails are pre-verified
+                provider: account.provider,
+              });
+              token.role = newUser.role;
+              token.id = newUser._id.toString();
+              token.emailVerified = true;
+              token.createdAt = newUser.createdAt;
+              console.log('JWT - New social user created:', { role: token.role, id: token.id });
+            }
           }
+        } else if (token?.email) {
+          // Always fetch the latest user from DB
+          await dbConnect();
+          const dbUser = await User.findOne({ email: token.email });
+          if (dbUser) {
+            token.role = dbUser.role || 'user';
+            token.id = dbUser._id.toString();
+            token.emailVerified = dbUser.emailVerified;
+            console.log('JWT - User from DB:', { role: token.role, id: token.id });
+          }
+        } else {
+          console.log('JWT - No email in token, using existing token data');
         }
-      } else if (token?.email) {
-        // Always fetch the latest user from DB
-        await dbConnect();
-        const dbUser = await User.findOne({ email: token.email });
-        if (dbUser) {
-          token.role = dbUser.role;
-          token.id = dbUser._id.toString();
-        }
+      } catch (error) {
+        console.error('Error in JWT callback:', error);
       }
       return token
     },
     async session({ session, token }) {
+      console.log('Session callback - token:', {
+        id: token.id,
+        role: token.role,
+        email: token.email,
+        sub: token.sub
+      });
+
       if (session.user) {
-        session.user.id = token.id as string
-        session.user.role = token.role as string
-        session.user.emailVerified = token.emailVerified === true
-        session.user.createdAt = token.createdAt instanceof Date ? token.createdAt : new Date()
+        session.user.id = token.id as string;
+        session.user.role = (token.role as string) || 'user'; // Default to 'user' if no role is set
+        session.user.emailVerified = token.emailVerified === true;
+        session.user.createdAt = token.createdAt instanceof Date ? token.createdAt : new Date();
+        
+        console.log('Session user after update:', {
+          id: session.user.id,
+          email: session.user.email,
+          role: session.user.role,
+          emailVerified: session.user.emailVerified
+        });
       }
-      return session
+      
+      return session;
     }
   },
   session: {

@@ -24,6 +24,8 @@ interface ArtworkWithArtist extends Omit<IArtwork, "artist"> {
   _id: string
 }
 
+import React from "react"
+
 export default function ArtworkModeration() {
   const { isAdmin, isLoading } = useAuth(true, true)
   const [artworks, setArtworks] = useState<ArtworkWithArtist[]>([])
@@ -32,6 +34,15 @@ export default function ArtworkModeration() {
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all")
   const [categoryFilter, setCategoryFilter] = useState<"all" | "painting" | "photography" | "digital" | "sculpture" | "other">("all")
   const [isLoadingArtworks, setIsLoadingArtworks] = useState(true)
+
+  // Like state
+  const [liking, setLiking] = useState<string | null>(null)
+  // Comment modal state
+  const [commentModal, setCommentModal] = useState<{ open: boolean; artwork: ArtworkWithArtist | null }>({ open: false, artwork: null })
+  const [comments, setComments] = useState<any[]>([])
+  const [newComment, setNewComment] = useState("")
+  const [loadingComments, setLoadingComments] = useState(false)
+  const [postingComment, setPostingComment] = useState(false)
 
   useEffect(() => {
     fetchArtworks()
@@ -79,22 +90,33 @@ export default function ArtworkModeration() {
     }
   }
 
+  // This function is called when the admin clicks the Approve or Reject button for an artwork
+  // It updates the status of the artwork ("approved" or "rejected") in the backend and updates the UI
   const handleUpdateStatus = async (artworkId: string, newStatus: "approved" | "rejected") => {
     try {
+      // Send a PATCH request to the backend API to update the status of the artwork
+      // The artworkId is sent as a query parameter, and the new status is sent in the request body
       const res = await fetch(`/api/admin/artworks?artworkId=${artworkId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        method: "PATCH", // Use PATCH to update only the status field
+        headers: { "Content-Type": "application/json" }, // Specify JSON content type
+        body: JSON.stringify({ status: newStatus }), // Send the new status ("approved" or "rejected")
       })
 
+      // If the response is not OK, throw an error to be caught below
       if (!res.ok) throw new Error("Failed to update artwork status")
 
+      // Parse the updated artwork returned from the backend
       const updatedArtwork = await res.json()
+
+      // Update the local artworks state: replace the old artwork with the updated one
       setArtworks(artworks.map(artwork =>
         artwork._id === artworkId ? updatedArtwork : artwork
       ))
+
+      // Show a success message to the admin
       toast.success(`Artwork ${newStatus} successfully`)
     } catch (error) {
+      // If there was an error, log it and show an error message
       console.error("Error updating artwork status:", error)
       toast.error("Failed to update artwork status")
     }
@@ -113,6 +135,74 @@ export default function ArtworkModeration() {
     } catch (error) {
       console.error("Error deleting artwork:", error)
       toast.error("Failed to delete artwork")
+    }
+  }
+
+  // Like handler
+  const handleLike = async (artworkId: string) => {
+    setLiking(artworkId)
+    try {
+      const res = await fetch(`/api/artworks/${artworkId}/like`, { method: "POST" })
+      if (!res.ok) throw new Error("Failed to like artwork")
+      const data = await res.json()
+      setArtworks((prev) => prev.map((a) => a._id === artworkId ? { ...a, likes: Array(data.likes).fill("") } : a))
+      toast.success(data.liked ? "Liked!" : "Unliked!")
+    } catch (err) {
+      toast.error("Failed to like artwork")
+    } finally {
+      setLiking(null)
+    }
+  }
+
+  // Download handler
+  const handleDownload = (url: string, title: string) => {
+    const link = document.createElement("a")
+    link.href = url
+    link.download = title || "artwork"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  // Comment modal handlers
+  const openCommentModal = async (artwork: ArtworkWithArtist) => {
+    setCommentModal({ open: true, artwork })
+    setLoadingComments(true)
+    try {
+      const res = await fetch(`/api/artworks/${artwork._id}/comments`)
+      if (!res.ok) throw new Error("Failed to fetch comments")
+      const data = await res.json()
+      setComments(data.comments)
+    } catch (err) {
+      setComments([])
+      toast.error("Failed to load comments")
+    } finally {
+      setLoadingComments(false)
+    }
+  }
+  const closeCommentModal = () => {
+    setCommentModal({ open: false, artwork: null })
+    setComments([])
+    setNewComment("")
+  }
+  const handleAddComment = async () => {
+    if (!commentModal.artwork || !newComment.trim()) return
+    setPostingComment(true)
+    try {
+      const res = await fetch(`/api/artworks/${commentModal.artwork._id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: newComment })
+      })
+      if (!res.ok) throw new Error("Failed to post comment")
+      const data = await res.json()
+      setComments(data.comments)
+      setNewComment("")
+      toast.success("Comment added!")
+    } catch (err) {
+      toast.error("Failed to add comment")
+    } finally {
+      setPostingComment(false)
     }
   }
 
@@ -221,7 +311,7 @@ export default function ArtworkModeration() {
                   <div>
                     <h3 className="font-medium">{artwork.title}</h3>
                     <p className="text-sm text-muted-foreground">
-                      by {artwork.artist.name}
+                      by {artwork.artist?.name || "Unknown Artist"}
                     </p>
                     <p className="text-sm mt-2 line-clamp-2">
                       {artwork.description}
@@ -248,6 +338,33 @@ export default function ArtworkModeration() {
                       {artwork.status}
                     </span>
                     <div className="flex items-center space-x-2">
+                      {/* LIKE BUTTON */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleLike(artwork._id.toString())}
+                        aria-label="Like"
+                      >
+                        <span role="img" aria-label="like">❤️</span> {artwork.likes?.length || 0}
+                      </Button>
+                      {/* COMMENT BUTTON */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openCommentModal(artwork)}
+                        aria-label="Comments"
+                      >
+                        💬
+                      </Button>
+                      {/* DOWNLOAD BUTTON */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDownload(artwork.imageUrl, artwork.title)}
+                        aria-label="Download"
+                      >
+                        ⬇️
+                      </Button>
                       {artwork.status === "pending" && (
                         <>
                           <Button
@@ -283,6 +400,45 @@ export default function ArtworkModeration() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    {/* Comment Modal */}
+    {commentModal.open && (
+      <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 max-w-md w-full relative">
+          <button className="absolute top-2 right-2 text-xl" onClick={closeCommentModal}>&times;</button>
+          <h2 className="text-lg font-bold mb-2">Comments</h2>
+          {loadingComments ? (
+            <div>Loading...</div>
+          ) : (
+            <div className="max-h-48 overflow-y-auto mb-2">
+              {comments.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No comments yet.</div>
+              ) : (
+                comments.map((c, idx) => (
+                  <div key={idx} className="mb-2 border-b pb-1">
+                    <div className="font-semibold text-sm">{c.user?.name || "User"}</div>
+                    <div className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleString()}</div>
+                    <div>{c.text}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+          <div className="flex gap-2 mt-2">
+            <Input
+              value={newComment}
+              onChange={e => setNewComment(e.target.value)}
+              placeholder="Add a comment..."
+              className="flex-1"
+              disabled={postingComment}
+              onKeyDown={e => { if (e.key === "Enter") handleAddComment() }}
+            />
+            <Button onClick={handleAddComment} disabled={postingComment || !newComment.trim()}>
+              {postingComment ? "..." : "Post"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
   )
 } 

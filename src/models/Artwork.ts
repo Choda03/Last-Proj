@@ -1,18 +1,25 @@
 import mongoose, { Document } from "mongoose"
 
+export interface IComment {
+  user: mongoose.Types.ObjectId;
+  text: string;
+  createdAt: Date;
+}
+
 export interface IArtwork extends Document {
-  title: string
-  description: string
-  imageUrl: string
-  artist: mongoose.Types.ObjectId
-  category: "painting" | "photography" | "digital" | "sculpture" | "other"
-  tags: string[]
-  views: number
-  likes: number
-  status: "pending" | "approved" | "rejected"
-  isPublic: boolean
-  createdAt: Date
-  updatedAt: Date
+  title: string;
+  description: string;
+  imageUrl: string;
+  artist: mongoose.Types.ObjectId;
+  category: "painting" | "photography" | "digital" | "sculpture" | "other";
+  tags: string[];
+  views: number;
+  likes: mongoose.Types.ObjectId[];
+  comments: IComment[];
+  status: "pending" | "approved" | "rejected";
+  isPublic: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const artworkSchema = new mongoose.Schema<IArtwork>(
@@ -55,9 +62,17 @@ const artworkSchema = new mongoose.Schema<IArtwork>(
       default: 0,
     },
     likes: {
-      type: Number,
-      default: 0,
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "User",
+      default: [],
     },
+    comments: [
+      {
+        user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+        text: { type: String, required: true },
+        createdAt: { type: Date, default: Date.now },
+      }
+    ],
     status: {
       type: String,
       enum: {

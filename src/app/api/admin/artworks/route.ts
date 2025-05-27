@@ -42,11 +42,14 @@ export async function GET() {
   }
 }
 
+// This PATCH handler allows an admin to approve or reject an artwork by updating its status
 export async function PATCH(req: Request) {
   try {
+    // Get the current session and user
     const session = await getTypedSession()
     const user = session?.user as SessionUser
 
+    // Only allow admins to perform this action
     if (!user || user.role !== "admin") {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -54,9 +57,11 @@ export async function PATCH(req: Request) {
       )
     }
 
+    // Extract artworkId from the query parameters
     const { searchParams } = new URL(req.url)
     const artworkId = searchParams.get("artworkId")
 
+    // If no artworkId is provided, return an error
     if (!artworkId) {
       return NextResponse.json(
         { error: "Artwork ID is required" },
@@ -64,9 +69,11 @@ export async function PATCH(req: Request) {
       )
     }
 
+    // Parse the request body to get the new status
     const body = await req.json()
     const { status } = body
 
+    // Validate the status value (must be "approved" or "rejected")
     if (!status || !["approved", "rejected"].includes(status)) {
       return NextResponse.json(
         { error: "Invalid status value" },
@@ -74,14 +81,20 @@ export async function PATCH(req: Request) {
       )
     }
 
+    // Connect to the database
     await dbConnect()
 
+    // Update the artwork's status in the database
+    // - Find the artwork by its ID
+    // - Set the new status
+    // - Return the updated artwork document (with artist info populated)
     const updatedArtwork = await Artwork.findByIdAndUpdate(
       artworkId,
       { $set: { status } },
       { new: true }
     ).populate("artist", "name email")
 
+    // If the artwork wasn't found, return a 404 error
     if (!updatedArtwork) {
       return NextResponse.json(
         { error: "Artwork not found" },
@@ -89,8 +102,10 @@ export async function PATCH(req: Request) {
       )
     }
 
+    // Return the updated artwork as JSON
     return NextResponse.json(updatedArtwork)
   } catch (error) {
+    // If there was an error, log it and return a 500 error
     console.error("Failed to update artwork:", error)
     return NextResponse.json(
       { error: "Internal server error" },
@@ -98,6 +113,7 @@ export async function PATCH(req: Request) {
     )
   }
 }
+
 
 export async function DELETE(req: Request) {
   try {

@@ -32,13 +32,13 @@ const userSchema = new mongoose.Schema<IUser>(
     email: {
       type: String,
       required: [true, "Please provide an email"],
-      unique: true,
       trim: true,
       lowercase: true,
       match: [
         /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
         "Please provide a valid email",
       ],
+      index: { unique: true },
     },
     password: {
       type: String,
@@ -124,7 +124,6 @@ userSchema.methods.comparePassword = async function (
 }
 
 // Create indexes
-userSchema.index({ email: 1 }, { unique: true })
 userSchema.index({ role: 1 })
 userSchema.index({ resetPasswordToken: 1 })
 userSchema.index({ emailVerificationToken: 1 })

@@ -3,24 +3,32 @@ import { getToken } from "next-auth/jwt"
 import { NextRequestWithAuth } from "next-auth/middleware"
 
 export default async function middleware(req: NextRequestWithAuth) {
-  const token = await getToken({ req })
-  const isAdminRoute = req.nextUrl.pathname.startsWith("/admin")
+  try {
+    console.log("MIDDLEWARE COOKIES:", req.cookies);
+    const token = await getToken({
+      req,
+      secret: process.env.NEXTAUTH_SECRET, // <-- Explicitly pass the secret
+    });
+    console.log("MIDDLEWARE TOKEN:", token);
+    const isAdminRoute = req.nextUrl.pathname.startsWith("/admin");
 
-  if (isAdminRoute) {
-    if (!token) {
-      // Redirect to login if not authenticated
-      return NextResponse.redirect(new URL("/login", req.url))
+    if (isAdminRoute) {
+      if (!token) {
+        console.warn("[middleware] No token found, redirecting to /login");
+        return NextResponse.redirect(new URL("/login", req.url));
+      }
+      if (token.role !== "admin") {
+        return NextResponse.redirect(new URL("/", req.url));
+      }
     }
 
-    if (token.role !== "admin") {
-      // Redirect to home if not admin
-      return NextResponse.redirect(new URL("/", req.url))
-    }
+    return NextResponse.next();
+  } catch (err) {
+    console.error("[middleware] Error extracting token:", err);
+    return NextResponse.redirect(new URL("/login", req.url));
   }
-
-  return NextResponse.next()
 }
 
 export const config = {
   matcher: ["/admin/:path*"],
-} 
+}

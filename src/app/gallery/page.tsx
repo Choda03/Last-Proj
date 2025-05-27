@@ -17,6 +17,8 @@ const categories = ["All", ...sharedCategories.map(cat => cat.id)]
 
 const getCategoryTitle = (id: string) => sharedCategories.find(cat => cat.id === id)?.title || id
 
+import React from "react"
+
 export default function GalleryPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -25,6 +27,15 @@ export default function GalleryPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [sortBy, setSortBy] = useState("recent")
+
+  // Like state
+  const [liking, setLiking] = useState<string | null>(null)
+  // Comment modal state
+  const [commentModal, setCommentModal] = useState<{ open: boolean; artwork: any | null }>({ open: false, artwork: null })
+  const [comments, setComments] = useState<any[]>([])
+  const [newComment, setNewComment] = useState("")
+  const [loadingComments, setLoadingComments] = useState(false)
+  const [postingComment, setPostingComment] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -37,6 +48,71 @@ export default function GalleryPage() {
       .then(res => res.json())
       .then(data => setArtworks(Array.isArray(data) ? data : []))
   }, [])
+
+  // Like handler
+  const handleLike = async (artworkId: string) => {
+    setLiking(artworkId)
+    try {
+      const res = await fetch(`/api/artworks/${artworkId}/like`, { method: "POST" })
+      if (!res.ok) throw new Error("Failed to like artwork")
+      const data = await res.json()
+      setArtworks((prev) => prev.map((a) => a._id === artworkId ? { ...a, likes: data.likes } : a))
+    } catch (err) {
+      // optionally show error
+    } finally {
+      setLiking(null)
+    }
+  }
+
+  // Download handler
+  const handleDownload = (url: string, title: string) => {
+    const link = document.createElement("a")
+    link.href = url
+    link.download = title || "artwork"
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  // Comment modal handlers
+  const openCommentModal = async (artwork: any) => {
+    setCommentModal({ open: true, artwork })
+    setLoadingComments(true)
+    try {
+      const res = await fetch(`/api/artworks/${artwork._id}/comments`)
+      if (!res.ok) throw new Error("Failed to fetch comments")
+      const data = await res.json()
+      setComments(data.comments)
+    } catch (err) {
+      setComments([])
+    } finally {
+      setLoadingComments(false)
+    }
+  }
+  const closeCommentModal = () => {
+    setCommentModal({ open: false, artwork: null })
+    setComments([])
+    setNewComment("")
+  }
+  const handleAddComment = async () => {
+    if (!commentModal.artwork || !newComment.trim()) return
+    setPostingComment(true)
+    try {
+      const res = await fetch(`/api/artworks/${commentModal.artwork._id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: newComment })
+      })
+      if (!res.ok) throw new Error("Failed to post comment")
+      const data = await res.json()
+      setComments(data.comments)
+      setNewComment("")
+    } catch (err) {
+      // optionally show error
+    } finally {
+      setPostingComment(false)
+    }
+  }
 
   const filteredArtworks = artworks.filter((artwork) => {
     const matchesSearch = artwork.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -133,13 +209,17 @@ export default function GalleryPage() {
                   className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-4">
-                  <Button variant="ghost" size="icon" className="text-white hover:text-white hover:bg-white/20">
-                    <Heart className="h-5 w-5" />
+                  {/* LIKE BUTTON */}
+                  <Button variant="ghost" size="icon" className="text-white hover:text-white hover:bg-white/20" onClick={() => handleLike(artwork._id)}>
+                    <Heart className="h-5 w-5" fill={Array.isArray(artwork.likes) && session?.user?.id && artwork.likes.includes(session.user.id) ? "#e11d48" : "none"} />
+                    <span className="ml-1">{artwork.likes?.length || 0}</span>
                   </Button>
-                  <Button variant="ghost" size="icon" className="text-white hover:text-white hover:bg-white/20">
-                    <Share2 className="h-5 w-5" />
+                  {/* DOWNLOAD BUTTON */}
+                  <Button variant="ghost" size="icon" className="text-white hover:text-white hover:bg-white/20" onClick={() => handleDownload(artwork.imageUrl, artwork.title)}>
+                    ⬇️
                   </Button>
-                  <Button variant="ghost" size="icon" className="text-white hover:text-white hover:bg-white/20">
+                  {/* COMMENT BUTTON */}
+                  <Button variant="ghost" size="icon" className="text-white hover:text-white hover:bg-white/20" onClick={() => openCommentModal(artwork)}>
                     <MessageCircle className="h-5 w-5" />
                   </Button>
                 </div>
@@ -160,6 +240,45 @@ export default function GalleryPage() {
           Load More Artworks
         </Button>
       </div>
-    </div>
+    {/* Comment Modal */}
+    {commentModal.open && (
+      <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 max-w-md w-full relative">
+          <button className="absolute top-2 right-2 text-xl" onClick={closeCommentModal}>&times;</button>
+          <h2 className="text-lg font-bold mb-2">Comments</h2>
+          {loadingComments ? (
+            <div>Loading...</div>
+          ) : (
+            <div className="max-h-48 overflow-y-auto mb-2">
+              {comments.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No comments yet.</div>
+              ) : (
+                comments.map((c, idx) => (
+                  <div key={idx} className="mb-2 border-b pb-1">
+                    <div className="font-semibold text-sm">{c.user?.name || "User"}</div>
+                    <div className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleString()}</div>
+                    <div>{c.text}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+          <div className="flex gap-2 mt-2">
+            <Input
+              value={newComment}
+              onChange={e => setNewComment(e.target.value)}
+              placeholder="Add a comment..."
+              className="flex-1"
+              disabled={postingComment}
+              onKeyDown={e => { if (e.key === "Enter") handleAddComment() }}
+            />
+            <Button onClick={handleAddComment} disabled={postingComment || !newComment.trim()}>
+              {postingComment ? "..." : "Post"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
   )
 } 
